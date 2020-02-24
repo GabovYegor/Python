@@ -1,29 +1,47 @@
 import pandas
-import random
-from sklearn.preprocessing import LabelEncoder
+import matplotlib.pyplot as plt
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.models import load_model
+from sklearn.preprocessing import LabelEncoder
 
 dataframe = pandas.read_csv("iris.csv", header=None)
 dataset = dataframe.values
-rand = list(range(len(dataset)))
-random.seed()
-random.shuffle(rand)
-dataset = dataset[rand]
-X = dataset[:,0:4].astype(float)
-Y = dataset[:,4]
-
+X = dataset[:, 0:4].astype(float)
+Y = dataset[:, 4]
 encoder = LabelEncoder()
 encoder.fit(Y)
 encoded_Y = encoder.transform(Y)
 dummy_y = to_categorical(encoded_Y)
-
 model = Sequential()
-model.add(Dense(1024, activation='relu'))
-model.add(Dense(512, activation='relu'))
-model.add(Dense(64, activation='relu'))
+model.add(Dense(4, activation='relu', input_shape=(4,)))
 model.add(Dense(3, activation='softmax'))
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+mc = ModelCheckpoint(filepath='best_model.hdf5', monitor='val_loss', save_best_only=True)
+history = model.fit(X, dummy_y, epochs=75, batch_size=10, validation_split=0.1, callbacks=[mc])
+history_dict = history.history
+loss_values = history_dict['loss']
+val_loss_values = history_dict['val_loss']
+epochs = range(1, len(loss_values) + 1)
+plt.plot(epochs, loss_values, 'r', label='Training loss')
+plt.plot(epochs, val_loss_values, 'b', label='Validation loss')
+plt.title('Training and validation loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
+plt.clf()
+acc_values = history_dict['acc']
+val_acc_values = history_dict['val_acc']
+plt.plot(epochs, acc_values, 'r', label='Training acc')
+plt.plot(epochs, val_acc_values, 'b', label='Validation acc')
 
-model.compile(optimizer='adam',loss='categorical_crossentropy', metrics=['accuracy'])
-model.fit(X, dummy_y, epochs=50, batch_size=10, validation_split=0.1)
+plt.title('Training and validation accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+best_model = load_model('best_model.hdf5')
+print(best_model.evaluate(X[135:], dummy_y[135:]))
